@@ -1,11 +1,14 @@
 """reads chess database"""
 
 import chess.pgn
-import State
-str = open('game.pgn')
+pgn = open('games/caissabase.pgn')
 
-pgn = chess.pgn.read_game(str)
-board = pgn.board()
-for move in pgn.mainline_moves():
-    board.push(move)
-    print("\n",board)
+
+game = ""
+
+while(game != None):
+    game = chess.pgn.read_game(pgn)
+    while(game.next()!=None):
+        game = game.next()
+        print(game.move)
+
