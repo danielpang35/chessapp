@@ -28,7 +28,6 @@ class State:
         successors = []
         b = self.board
         for e in self.edges():
-
             b.push(e)
             s = State(b)
             successors.append(s)
@@ -53,5 +52,20 @@ class State:
             else:
                 #must be a black piece
                 val -= self.values[piece.piece_type]
+
         return val
-    
+    def orderMoves(self):
+        moveValue = 0
+        moves = []
+        b = self.board
+        for move in b.legal_moves:
+            moveValue = 0
+            """calculate value of captures"""
+            if(b.is_capture(move)):
+                capturedpiece = b.piece_type_at(move.to_square)
+                attacker = b.piece_type_at(move.from_square)
+                if((capturedpiece != None) & (attacker != None)):
+                    moveValue += State.values[capturedpiece] - State.values[attacker]
+            moves.append((move,moveValue))
+        moves = sorted(moves, key = lambda x: x[1], reverse = b.turn)
+        return moves
