@@ -9,7 +9,7 @@ class State:
     goal state: maximum score achievable"""
     values = {chess.PAWN: 1,
             chess.KNIGHT: 3,
-            chess.BISHOP: 3.3,
+            chess.BISHOP: 3,
             chess.ROOK: 5,
             chess.QUEEN: 9,
             chess.KING: 0}

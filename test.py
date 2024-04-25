@@ -11,7 +11,9 @@ from flask import Response, Flask
 app = Flask(__name__)
 @app.route("/")
 def home():
+    global board
     board = chess.Board()
+    
     ret = "<html><svg width ='700' height = '700'>"
     ret += chess.svg.board(board)
     ret += "</svg>"
@@ -26,9 +28,9 @@ def move():
     bestsucc = State()
     state = State(board)
 
-    bestsucc = sorted(state.successors(), key=lambda x:x.evaluate(), reverse = state.board.turn)[0]
+    bestsucc = sorted(state.successors(), key=lambda x:minimax(x,0,x.board.turn,-math.inf,math.inf), reverse = state.board.turn)[0]
 
-    print(bestsucc)
+    print(bestsucc.board)
     # for succ in state.successors():
     #     if(succ.evaluate()>=best):
     #         best = succ.evaluate()
@@ -45,31 +47,32 @@ def move():
 
     return ret
     
-def choosemove(s):
-    for s.board.legal_moves:
 
 def minimax(s, depth, maximizingplayer,alph,beta):
-    if depth >=5 or s.is_game_over:
+    if depth >=4 or s.board.is_game_over():
         return s.evaluate()
     if maximizingplayer:
         #must be white
         maxval = math.inf
+        print("HELP")
         for succ in s.successors():
-            val = max(minimax(succ, depth+1,not maximizingplayer,alph,beta))
-            maxval = max(val,maxval)
-            alph = max(alph, val)
-            if(beta <= alph):
+            maxval = max(minimax(succ, depth+1,not maximizingplayer,alph,beta),maxval)
+            alph = max(alph, maxval)
+            if(maxval >= beta):
+                print("pruned")
                 break
+        print(maxval)
         return maxval
     else:
         #must be black
-        minval = -math.inf
+        minval = math.inf
         for succ in s.successors():
-            val = min(minimax(succ,depth + 1,not maximizingplayer,alph,beta))
-            minval = min(val,minval)
-            beta = min(val,minval)
-            if(alph >= beta):
+            minval = min(minimax(succ,depth + 1,not maximizingplayer,alph,beta),minval)
+            beta = min(beta,minval)
+            if(minval <=alpha ):
+                print("pruned")
                 break
+        print(minval)
         return minval
     
 
