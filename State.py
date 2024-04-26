@@ -55,9 +55,9 @@ class State:
             # add a number of legal moves term
         bak = b.turn
         b.turn = chess.WHITE
-        val += b.legal_moves.count()
+        val += .5*b.legal_moves.count()
         b.turn = chess.BLACK
-        val -= b.legal_moves.count()
+        val -= .5*b.legal_moves.count()
         b.turn = bak
         return val/100
         

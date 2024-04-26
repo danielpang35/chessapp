@@ -33,8 +33,10 @@ app = Flask(__name__)
 @app.route("/")
 def home():
     global board
+    global state
     board = chess.Board()
     board.reset_board()
+    board.reset()
     state = State(board)
     
     ret = "<html><svg width ='700' height = '700'>"
@@ -58,9 +60,7 @@ def computermove(s):
             print(move)
             print(board)
             state.board.push(move)
-
         else:
-
             bestmove =playMove(state)
             state.board.push(bestmove)
             print(state.board)
@@ -84,11 +84,12 @@ def move():
     print(not state.board.turn,"played: \n",state.board, "\nwith eval",state.evaluate())
 
     ret = "<html>"
-    ret += '<img width=600 height=600 src="data:image/svg+xml;base64,%s"></img><br/>' % to_svg(state)
+    ret += "<a href='/move'><button>Move</button></a>"
+    ret += "<a href='/'><button>Go Home></button></a>"
+    ret += '<div><img width=600 height=600 src="data:image/svg+xml;base64,%s"></img></div>' % to_svg(state)
     ret += "<h1>" + format(state.evaluate(),".2f") + "</h1>"
     ret += "<h1>Evaluated: " + str(ct)+"</h1>"
     ret += "<h1>Hash: " + str(zobrist.gen_zobhash(state.board))+"</h1>"
-    ret += "<a href='/move'><button>Move</button></as>"
     end = time.time()
     ret += "<h1>"+str(end-start)+"</h1>"
     return ret
@@ -149,7 +150,8 @@ def negamax(s, depth, turn,alpha, beta):
         if(hash in transpositions):
             s.board.pop()
             print("using transposition",hash)
-            print("move:", move[0], "givenvalue", transpositions[hash], "capturevalue",move[1],"for player","white" if s.board.turn else "black")
+            if(depth == 4):
+                print("move:", move[0], "givenvalue", transpositions[hash], "capturevalue",move[1],"for player","white" if s.board.turn else "black")
             maxval = transpositions[hash]
         else:
             x = -negamax(s,depth - 1, not turn, -beta,-alpha)
