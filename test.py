@@ -12,6 +12,7 @@ board = chess.Board()
 state = State(board)
 game = chess.pgn.Game()
 zobrist = zobrist()
+transpositions = {}
 ct=0
 #read from database
 pgn = open('games/caissabase.pgn')
@@ -59,6 +60,7 @@ def computermove(s):
             state.board.push(move)
 
         else:
+
             bestmove =playMove(state)
             state.board.push(bestmove)
             print(state.board)
@@ -100,7 +102,7 @@ def playMove(state):
     bestmove = None
     print("Choosing move for", "white" if b.turn else "black")
     start = time.time()
-    for i in range(3):
+    for i in range(4):
         scores = []
         if(bestmove != None):
             print("starting with bestmove:",bestmove)
@@ -143,14 +145,22 @@ def negamax(s, depth, turn,alpha, beta):
         """for each move in the ordered list, push to state board, perform negamax"""
         start = time.time()
         s.board.push(move[0])
-        x = -negamax(s,depth - 1, not turn, -beta,-alpha)
-        if(x>maxval):
-            #print("move:", move[0], "givenvalue", x, "capturevalue",move[1],"for player","white"if s.board.turn else "black")
-            maxmove = move[0]
-            maxval = x
+        hash = zobrist.gen_zobhash(s.board)
+        if(hash in transpositions):
+            s.board.pop()
+            print("using transposition",hash)
+            print("move:", move[0], "givenvalue", transpositions[hash], "capturevalue",move[1],"for player","white" if s.board.turn else "black")
+            maxval = transpositions[hash]
+        else:
+            x = -negamax(s,depth - 1, not turn, -beta,-alpha)
+            if(x>maxval):
+                #print("move:", move[0], "givenvalue", x, "capturevalue",move[1],"for player","white"if s.board.turn else "black")
+                maxmove = move[0]
+                maxval = x
+            s.board.pop()
+            transpositions[hash] = maxval
         #maxval = max(-negamax(s,depth - 1, -beta,-alpha),maxval)
         #print("current maxval", maxval)
-        s.board.pop()
         
         alpha = max(alpha, maxval)
         if(alpha > beta):
