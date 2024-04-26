@@ -1,0 +1,28 @@
+.board {
+    display: grid;
+    width: 800px;
+    height: 800px;
+    grid-template-rows: repeat(8,12.5%);
+    grid-template-columns: repeat(8,12.5%);
+
+}
+.lightsquare {
+    display: 'flex';
+    justify-content: center;
+    text-align: center;
+    width: 100px;
+    height: 100px;
+    background-color: beige;
+}
+.darksquare {
+    text-align: center;
+    width: 100px;
+    height: 100px;
+    background-color: #C4A484;
+}
+
+.piece {
+    display:inline-block;
+    width: 80px;
+    height: 80px;
+}
