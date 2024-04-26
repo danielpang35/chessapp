@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 python-chess = "*"
 flask = "*"
+numpy = "*"
 
 [dev-packages]
 

@@ -55,9 +55,9 @@ class State:
             # add a number of legal moves term
         bak = b.turn
         b.turn = chess.WHITE
-        val += 0.1 * b.legal_moves.count()
+        val += b.legal_moves.count()
         b.turn = chess.BLACK
-        val -= 0.1 * b.legal_moves.count()
+        val -= b.legal_moves.count()
         b.turn = bak
         return val/100
         
@@ -74,13 +74,13 @@ class State:
                 attacker = b.piece_type_at(move.from_square)
                 if((capturedpiece != None) & (attacker != None)):
                     """assign any capture at least a value of 5"""
-                    moveValue += State.values[capturedpiece] - State.values[attacker] + 10
+                    moveValue += State.values[capturedpiece] - State.values[attacker] + 5000
                     #print("move: ", move.uci(),chess.piece_name(capturedpiece), "captures",chess.piece_name(attacker), "attacker")
             moves.append((move,moveValue))
 
         moves = sorted(moves, key = lambda x: x[1])
         end = time.time()
-        #print("took %f", end-st)
+        #print("took %f to order moves", end-st)
         # for move in moves:
         #     print("found move:",move[0].uci(),move[1])
         return moves

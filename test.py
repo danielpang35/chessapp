@@ -6,10 +6,12 @@ import math
 import base64
 import time
 from State import State
+from Zobrist import zobrist
 
 board = chess.Board()
 state = State(board)
 game = chess.pgn.Game()
+zobrist = zobrist()
 ct=0
 #read from database
 pgn = open('games/caissabase.pgn')
@@ -45,14 +47,7 @@ def home():
 def play():
     pass
 def computermove(s):
-    global board
-    global state
     global game
-    global ct
-    
-    ct = 0
-    best = 0
-    state = State(board)
     if board.fullmove_number < 5:
         """for the opening, copy a master"""
         move = playOpening(game)
@@ -62,6 +57,7 @@ def computermove(s):
             print(move)
             print(board)
             state.board.push(move)
+
         else:
             bestmove =playMove(state)
             state.board.push(bestmove)
@@ -75,7 +71,13 @@ def computermove(s):
     
 @app.route("/move")
 def move():
+    global ct
+    global board
+    global state
     start = time.time()
+    ct = 0
+    state = State(board)
+    
     bestmove = computermove(state)
     print(not state.board.turn,"played: \n",state.board, "\nwith eval",state.evaluate())
 
@@ -83,6 +85,7 @@ def move():
     ret += '<img width=600 height=600 src="data:image/svg+xml;base64,%s"></img><br/>' % to_svg(state)
     ret += "<h1>" + format(state.evaluate(),".2f") + "</h1>"
     ret += "<h1>Evaluated: " + str(ct)+"</h1>"
+    ret += "<h1>Hash: " + str(zobrist.gen_zobhash(state.board))+"</h1>"
     ret += "<a href='/move'><button>Move</button></as>"
     end = time.time()
     ret += "<h1>"+str(end-start)+"</h1>"
@@ -92,18 +95,22 @@ def move():
 def playMove(state):
     b = state.board
     scores = []
-    start = time.time()
     #iterative deepening
     #begin iterative deepening
     bestmove = None
     print("Choosing move for", "white" if b.turn else "black")
-
+    start = time.time()
     for i in range(3):
         scores = []
         if(bestmove != None):
+            print("starting with bestmove:",bestmove)
+            if(time.time()-start > 5):
+                print("TIMES UP")
+                #return bestmove
             b.push(bestmove)
             scores.append((-negamax(state,i,b.turn,-math.inf,math.inf),bestmove))
             b.pop()
+
         for m in state.orderMoves():
             b.push(m[0])
             scores.append((-negamax(state,i,b.turn,-math.inf,math.inf),m[0]))
@@ -139,17 +146,18 @@ def negamax(s, depth, turn,alpha, beta):
         x = -negamax(s,depth - 1, not turn, -beta,-alpha)
         if(x>maxval):
             #print("move:", move[0], "givenvalue", x, "capturevalue",move[1],"for player","white"if s.board.turn else "black")
+            maxmove = move[0]
             maxval = x
         #maxval = max(-negamax(s,depth - 1, -beta,-alpha),maxval)
         #print("current maxval", maxval)
         s.board.pop()
-            
+        
         alpha = max(alpha, maxval)
-        if(alpha >= beta):
-            if(depth ==3):
-                print("prune tree with move ", move[0],"alpha", alpha, "beta", beta)
-            """prune"""
-            break
+        if(alpha > beta):
+                #print("prune tree with move ", move[0],"alpha", alpha, "beta", beta)
+                """prune"""
+                break    
+    #print("returning from depth", depth, "with bestmove ", maxmove, "for player ","white"if s.board.turn else "black")
     return maxval
 
 def playOpening(s):
