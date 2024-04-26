@@ -4,9 +4,16 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-python-chess = "*"
-flask = "*"
-numpy = "*"
+python-chess = "==1.999"
+flask = "==3.0.3"
+numpy = "==1.26.4"
+blinker = "==1.7.0"
+chess = "==1.10.0"
+click = "==8.1.7"
+itsdangerous = "==2.2.0"
+jinja2 = "==3.1.3"
+markupsafe = "==2.1.5"
+werkzeug = "==3.0.2"
 
 [dev-packages]
 
