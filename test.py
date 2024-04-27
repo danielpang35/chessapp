@@ -13,6 +13,10 @@ state = State(board)
 game = chess.pgn.Game()
 zobrist = zobrist()
 transpositions = {}
+
+"""chess.Piece to arrayboard dict"""
+piecetostring = {"P": "wp", "N": "wn", "B": "wb", "R": "wr", "Q": "wq", "K": "wk", 
+                        "p": "bp", "n":"bn", "b":"bb", "r":"br", "q":"bq", "k": "bk"}
 ct=0
 #read from database
 pgn = open('game.pgn')
@@ -33,10 +37,32 @@ def to_svg(s):
 app = Flask(__name__)
 @app.route("/interact")
 def serve():
-    return render_template('home.html')
+    global board
+    
+    initdata = {'init':boardtoarray(board)}
+    return render_template('home.html',data = initdata)
 
 @app.route("/human", methods = ['POST'])
 def play():
+    global board
+    global state
+    input = request.json
+    fromsquare = int(input["fromsquare"])
+    tosquare = int(input["tosquare"])
+    ucistr = chess.square_name(fromsquare) + chess.square_name(tosquare)
+    print(ucistr)
+    try:
+        print("trying to paly move:",fromsquare, tosquare)
+
+        move = chess.Move.from_uci(ucistr)
+        if(move):
+            print(move)
+            board.push(move)
+    except:
+        print("failed move")
+    finally:
+        newb = boardtoarray(board)
+
     if request.method == 'POST':
         """modify/update the information for <user_id>"""
         # you can use <user_id>, which is a str but could
@@ -44,13 +70,25 @@ def play():
         # with your lxml knowledge to make the required
         # changes
         print(request.json) # a multidict containing POST data
-    newb = ['bb','bp','bk']
+    print(newb)
     res = jsonify(board=newb)
     return res
     return render_template("home.html")
 
-def make_move(move):
-    pass
+def boardtoarray(board):
+    arr = ['']*64
+    for i in range(7,-1,-1):
+        for j in range(8):
+            squareindex = i*8+j
+            square = board.piece_at(chess.Square(squareindex))
+            if(square != None):
+                piece = piecetostring[square.symbol()]
+                #print(piece)
+            else:
+                piece = ''
+            arr[squareindex] = piece
+    return arr
+
 @app.route("/")
 def home():
     global board
@@ -64,6 +102,7 @@ def home():
     ret += chess.svg.board(board)
     ret += "</svg>"
     ret += "<a href='/move'><button>Move</button></as>"
+    ret += "<a href='/interact'><button>Play</button></as>"
     return ret
 
 
