@@ -13,7 +13,10 @@ class State:
             chess.ROOK: 500,
             chess.QUEEN: 850,
             chess.KING: 120}
-        
+    centerness = [0]*64
+    for i in range(0,8):
+        for j in range(0,8):
+            centerness[i*8+j] = 1+(32-(i-4)**2 - (j-4)**2)/320
     def __init__(self,board=None):
         if board is not None:
             self.board = board
@@ -45,19 +48,24 @@ class State:
                 return 0
         val = 0.0
         piecemap = b.piece_map()
-        for piece in piecemap.values():
+        for square,piece in piecemap.items():
+            piece_val = 0
             if(piece.color):
                 #must be a white piece
-                val += self.values[piece.piece_type]
+                piece_val = self.values[piece.piece_type]
             else:
                 #must be a black piece
-                val -= self.values[piece.piece_type]    
+                piece_val = -self.values[piece.piece_type] 
+            if(piece.piece_type == chess.KNIGHT):
+                
+                piece_val *= self.centerness[chess.square_file(square)*8+chess.square_rank(square)]
+            val += piece_val   
             # add a number of legal moves term
         bak = b.turn
         b.turn = chess.WHITE
-        val += .5*b.legal_moves.count()
+        val += .05*b.legal_moves.count()
         b.turn = chess.BLACK
-        val -= .5*b.legal_moves.count()
+        val -= .05*b.legal_moves.count()
         b.turn = bak
         return val/100
         
@@ -74,11 +82,12 @@ class State:
                 attacker = b.piece_type_at(move.from_square)
                 if((capturedpiece != None) & (attacker != None)):
                     """assign any capture at least a value of 5"""
-                    moveValue += State.values[capturedpiece] - State.values[attacker] + 5000
+                    moveValue += State.values[capturedpiece] - State.values[attacker] + 2000
                     #print("move: ", move.uci(),chess.piece_name(capturedpiece), "captures",chess.piece_name(attacker), "attacker")
+            
             moves.append((move,moveValue))
 
-        moves = sorted(moves, key = lambda x: x[1])
+        moves = sorted(moves, key = lambda x: x[1], reverse = True)
         end = time.time()
         #print("took %f to order moves", end-st)
         # for move in moves:

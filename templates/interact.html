@@ -1,0 +1,17 @@
+{% extends 'home.html' %}
+
+{%block content %}
+<form action='/reset' method = "POST">
+    <input value="RESET" type="submit">
+</form> 
+
+<script type="text/javascript">
+    var initarray = {{data.init | tojson}}
+    var player = {{data.player | tojson}}
+</script>
+<script src = "/static/scripts/script.js"> </script>
+
+
+
+{% endblock %}
+

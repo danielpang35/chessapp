@@ -4,13 +4,18 @@
 </head>
 
 <body>
-    <div class="board">
+    <div class="container">
+        <div class="board">
 
+        </div>
+        <div class="metrics">
+
+        </div>
     </div>
+    
 </body>
-<script type="text/javascript">
-    var initarray = {{data.init | tojson}}
-</script>
-<script src = "/static/scripts/script.js"> </script>
+
+
+{% block content %}{% endblock %}
 
 </html>
