@@ -65,7 +65,6 @@ function drawmetrics(metrics)
 }
 
 function drawboard(arr){
-    selectedPiece = null
     dragged = null
     console.log("drawing board:",arr)
     console.log(arr.length)
@@ -111,6 +110,10 @@ function drawboard(arr){
             }
             if(ind ==from) {
                 square.classList.add('from')
+            }
+            if(selectedPiece && ind == selectedPiece.getAttribute("sqindex"))
+            {
+                square.style.backgroundColor = square.parentNode.classList.contains('lightsquare') ? '#ffe6ad': '#ebcc84';
             }
         }
     }
@@ -197,12 +200,24 @@ async function click(event) {
         droppedat = tosquare
         from = fromsquare
         movedata = {fromsquare:fromsquare,tosquare:tosquare}
+        console.log(String(square.src))
         if(fromsquare == tosquare) {
             console.log("unhighlighting",square)
             square.style.backgroundColor = square.parentNode.classList.contains('lightsquare') ? '#f0d9b5' :'#b58863'
             selectedPiece = null
             return
         };
+
+        if(String(square.src).includes("w") && player)
+        {
+            //this means white selected a piece, then selected another one of its pieces.
+            //just set selectedPiece
+            selectedPiece.style.backgroundColor = selectedPiece.parentNode.classList.contains('lightsquare') ? '#f0d9b5' :'#b58863'
+            selectedPiece = square
+            square.style.backgroundColor = square.parentNode.classList.contains('lightsquare') ? '#ffe6ad': '#ebcc84'; // Highlight selected piece
+            return
+        }
+        
         square.innerHTML = selectedPiece.innerHTML;
         selectedPiece.innerHTML = '';
         await sendMove(movedata)

@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import chess
 import chess.svg
 import chess.pgn
@@ -14,17 +15,21 @@ game = chess.pgn.Game()
 zobrist = zobrist()
 transpositions = {}
 
+SEARCHSTART = 0
+CURRBEST = ''
 """chess.Piece to arrayboard dict"""
 piecetostring = {"P": "wp", "N": "wn", "B": "wb", "R": "wr", "Q": "wq", "K": "wk", 
                         "p": "bp", "n":"bn", "b":"bb", "r":"br", "q":"bq", "k": "bk"}
 ct=0
 pc = 0
+quiescenodes = 0
 #read from database
 pgn = open('game.pgn')
 pgn = open('games/caissabase.pgn')
 mastergame = ""
 games = []
 gc=0
+transpositionct = 0
 while((game != None) & (gc < 500)):
     mastergame = chess.pgn.read_game(pgn)
     gc+=1
@@ -55,12 +60,21 @@ def reset():
     game = chess.pgn.Game()
     #initboard = {'init':boardtoarray(state.board)}
     return redirect("/interact")
+@app.route("/undo",methods=['POST'])
+def undo():
+    global state
+    global board
+    global game
+    state.board.pop()
+    state.board.pop()
+    return redirect("/interact")
 @app.route("/com", methods = ['POST'])
 def commove():
     global board
     global state
     global game
-
+    global ct
+    ct = 0
     """make move"""
     start = time.time()
     move,eval = computermove(state)
@@ -76,11 +90,13 @@ def commove():
     data = {
     'eval':-eval,
     'material':int(state.evaluate()),
-    'searched':int(ct),
+    'nodessearched':int(ct),
     'searchtime':str(format(timetosearch,".2f"))+'s',
     'transpositions':len(transpositions),
+    'transpositions utilized': transpositionct,
     'positionhash':int(positionhash),
-    'pruned':pc}
+    'nodespruned':pc,
+    'quiescencenodes':quiescenodes}
     '''convert move into tosquare,fromsquare'''
     fromsquare = chess.parse_square(move.uci()[0:2])
     tosquare = chess.parse_square(move.uci()[2:4])
@@ -205,68 +221,91 @@ def computermove(s):
     else:        
         result = playMove(state)
         state.board.push(result[0])
+        print(result[0])
         return result[0],result[1]
 
 def playMove(state):
     global pc
+    global transpositionct
+    global quiescenodes
+    global SEARCHSTART
+    global CURRBEST
+    global x
     pc = 0
+    transpositionct = 0
+    quiescenodes = 0
     b = state.board
     scores = []
     #iterative deepening
     #begin iterative deepening
-    bestmove = None
+    
     print("Choosing move for", "white" if b.turn else "black")
-    start = time.time()
-    for i in range(1,3):
+    SEARCHSTART = time.time()
+    bestmove = None
+    x=-math.inf
+
+    for i in range(1,4):
         scores = []
         if(bestmove != None):
             print("starting with bestmove:",bestmove, "at depth ", i)
-            if(time.time()-start > 5):
-                print("TIMES UP")
-                #return bestmove
+            print("CURRBEST:",CURRBEST,x)
             b.push(bestmove)
-            eval = (-negamax(state,i,b.turn,-math.inf,math.inf),bestmove)
+            eval = (negamax(state,i,not b.turn,-math.inf,math.inf),bestmove)
             scores.append(eval)
             print("prev best move eval: ", eval)
-            b.pop()
 
+            b.pop()
+       
         for m in state.orderMoves():
+            if(time.time()-SEARCHSTART > 5.0):
+                # x = x if b.turn else -x
+                # print("bestmove:",CURRBEST,"withval",x)
+                # return CURRBEST, x
+                pass
             b.push(m[0])
-            eval =(-negamax(state,i,b.turn,-math.inf,math.inf),m[0])
+            eval =(negamax(state,i,not b.turn,-math.inf,math.inf),m[0])
+            
             scores.append(eval)
             b.pop()
 
         """negamax returns the maximum value of state from perspective of player who's turn it is"""
         """scores stores negative maximum value of all successors"""
-        sort = sorted(scores, key = lambda x:x[0], reverse = True)
+        sort = sorted(scores, key = lambda x:x[0], reverse = b.turn)
         bestmove = sort[0][1]
         topeval = sort[0][0]
-        print("bestmove:",bestmove,"withval",topeval)
+        print("chose ",bestmove,"withval",topeval)
+        print("secondbest",sort[1][1],sort[1][0])
+        CURRBEST = bestmove
+        x = topeval
 
        
     end = time.time()
-    
+    topeval = topeval if b.turn else -topeval
     return bestmove, topeval
 
 
 def negamax(s, depth, turn,alpha, beta):
     global ct
     global pc
+    global transpositionct
+    global transpositions
     givenalpha = alpha  #this is the best that maximizing player could hope for, or the worst position black has the choice of giving white
     b = s.board
     hash = zobrist.gen_zobhash(b)
     if(hash in transpositions):
         entry = transpositions[hash]
         if(entry[1] >= depth):
+            transpositionct +=1
             """get previously found alpha and betas"""
-            if(entry[2] == 1):
+            if(entry[2]==0):
+                transpositionct+=1
+                return entry[0]
+            elif(entry[2] == 1):
                 """UPPERBOUND"""
                 #found upper bound, meaning this has been searched, yielding nothing better than alpha
                 #value stored is the minimum value of the position
-                alpha = min(alpha, entry)
-            elif(entry[2]==0):
-                '''EXACT'''
-                return entry[0]
+                alpha = max(alpha, entry[0])
+           
             else:
                 '''LOWERBOUND'''
                 #found lowerbound, meaning other player had something better before
@@ -274,18 +313,21 @@ def negamax(s, depth, turn,alpha, beta):
                 beta = min(beta, entry[0])
     ct +=1
     if(depth ==0 or b.is_game_over()):
+        #quiesce search instead
+        return quiesce(s,alpha, beta)
         return s.evaluate() if b.turn else -s.evaluate()
     ordered = s.orderMoves()
     maxval = -math.inf
     for move in ordered:
         """for each move in the ordered list, push to state board, perform negamax"""
-        start = time.time()
-        s.board.push(move[0])
+        s.board.push(move[0])        
         maxval = max(-negamax(s,depth - 1, not turn, -beta,-alpha),maxval)
         s.board.pop()
         alpha = max(alpha, maxval)
         if(alpha >= beta):
-            #print("prune tree with move ", move[0],"alpha", alpha, "beta", beta)
+            #if(depth >1):
+                #print("prune tree with move", move[0], "at depth :", depth)
+                #print("best move for ", b.turn, " here is so good, ",not b.turn," will not choose this tree.\nalpha:", alpha, "beta:", beta)
             """prune"""
             pc +=1
             break
@@ -302,6 +344,29 @@ def negamax(s, depth, turn,alpha, beta):
     
     return maxval
 
+def quiesce(s,alpha,beta):
+
+    '''given state, search all captures until only moves left are 'quiet' moves'''
+
+    '''standingpat - a lower bound'''
+    global quiescenodes
+    quiescenodes+=1
+    b = s.board
+    standingpat = s.evaluate() if b.turn else -s.evaluate()
+    caps = s.getCapturesOrdered()
+    if(standingpat >= beta):
+        return beta
+    elif(standingpat>alpha):
+        alpha = standingpat
+    for cap in caps:
+        s.board.push(cap[0])
+        capscore = -quiesce(s,-beta,-alpha)
+        s.board.pop()
+        if(capscore >=beta):
+            return beta
+        if(capscore < alpha):
+            alpha = capscore    
+    return alpha
 def playOpening(s):
     """return a move to play from a gamenode"""
     global games
