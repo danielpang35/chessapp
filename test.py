@@ -27,7 +27,7 @@ movegentime = 0
 evaluationtime = 0
 #read from database
 pgn = open('game.pgn')
-pgn = open('games/caissabase.pgn')
+#pgn = open('games/caissabase.pgn')
 mastergame = ""
 games = []
 gc=0
@@ -235,10 +235,14 @@ def playMove(state):
     global SEARCHSTART
     global CURRBEST
     global x
+    global evaluationtime
+    global movegentime
     pc = 0
     transpositionct = 0
     quiescenodes = 0
     b = state.board
+    evaluationtime = 0
+    movegentime = 0
     scores = []
     #iterative deepening
     #begin iterative deepening

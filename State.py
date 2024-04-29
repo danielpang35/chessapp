@@ -17,7 +17,11 @@ class State:
     for i in range(0,8):
         for j in range(0,8):
             centerness[i*8+j] = 1+(32-(i-4)**2 - (j-4)**2)/320
-            
+    pawnVals = [0]*64
+    for i in range(0,8):
+        for j in range(0,8):
+            pawnVals[i*8+j] = 1 + (10-j)/8
+    
     def __init__(self,board=None):
         if board is not None:
             self.board = board
@@ -51,6 +55,8 @@ class State:
         piecemap = b.piece_map()
         for square,piece in piecemap.items():
             piece_val = 0
+            file = chess.square_file(square)
+            rank = chess.square_rank(square)
             if(piece.color):
                 #must be a white piece
                 piece_val = self.values[piece.piece_type]
@@ -59,10 +65,10 @@ class State:
                 piece_val = -self.values[piece.piece_type] 
             if(piece.piece_type == chess.KNIGHT):
 
-                piece_val *= self.centerness[chess.square_file(square)*8+chess.square_rank(square)]
-            val += piece_val   
-            if(piece.piece_type == chess.PAWN):
-                piece_val *= 1+(10-chess.square_rank(square))/8
+                piece_val *= self.centerness[file*8+rank]             
+            # if(piece.piece_type == chess.PAWN):
+            #     piece_val *= self.pawnVals[file*8+rank]
+            val += piece_val  
             # add a number of legal moves term 
             #THIS SLOWS DOWN ALGORITHM SIGNIFICANTLY
         # bak = b.turn
@@ -89,7 +95,6 @@ class State:
                     """assign any capture at least a value of ~12.5"""
                     moveValue += State.values[capturedpiece] - State.values[attacker] + 2000
                 #print("move: ", move.uci(),chess.piece_name(capturedpiece), "captures",chess.piece_name(attacker), "attacker")
-            
             moves.append((move,moveValue))
 
         moves = sorted(moves, key = lambda x: x[1], reverse = True)
