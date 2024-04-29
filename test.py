@@ -23,6 +23,8 @@ piecetostring = {"P": "wp", "N": "wn", "B": "wb", "R": "wr", "Q": "wq", "K": "wk
 ct=0
 pc = 0
 quiescenodes = 0
+movegentime = 0 
+evaluationtime = 0
 #read from database
 pgn = open('game.pgn')
 pgn = open('games/caissabase.pgn')
@@ -96,7 +98,9 @@ def commove():
     'transpositions utilized': transpositionct,
     'positionhash':int(positionhash),
     'nodespruned':pc,
-    'quiescencenodes':quiescenodes}
+    'quiescencenodes':quiescenodes,
+    'movegentime':movegentime,
+    'evaluationtime':evaluationtime}
     '''convert move into tosquare,fromsquare'''
     fromsquare = chess.parse_square(move.uci()[0:2])
     tosquare = chess.parse_square(move.uci()[2:4])
@@ -245,6 +249,10 @@ def playMove(state):
     x=-math.inf
 
     for i in range(1,4):
+        '''TODO: refactor this
+        cannot prune any results from below, nor are moves being stored in a transposition table
+        maybe:
+        eval = negamax(state,i,not b.turn,-math.inf,math.inf'''
         scores = []
         if(bestmove != None):
             print("starting with bestmove:",bestmove, "at depth ", i)
@@ -289,6 +297,8 @@ def negamax(s, depth, turn,alpha, beta):
     global pc
     global transpositionct
     global transpositions
+    global movegentime
+    global evaluationtime
     givenalpha = alpha  #this is the best that maximizing player could hope for, or the worst position black has the choice of giving white
     b = s.board
     hash = zobrist.gen_zobhash(b)
@@ -298,25 +308,29 @@ def negamax(s, depth, turn,alpha, beta):
             transpositionct +=1
             """get previously found alpha and betas"""
             if(entry[2]==0):
-                transpositionct+=1
                 return entry[0]
-            elif(entry[2] == 1):
-                """UPPERBOUND"""
-                #found upper bound, meaning this has been searched, yielding nothing better than alpha
-                #value stored is the minimum value of the position
-                alpha = max(alpha, entry[0])
+            # elif(entry[2] == 1):
+            #     """UPPERBOUND"""
+            #     #found upper bound, meaning this has been searched, yielding nothing better than alpha
+            #     #value stored is the minimum value of the position
+            #     alpha = max(alpha, entry[0])
            
-            else:
-                '''LOWERBOUND'''
-                #found lowerbound, meaning other player had something better before
-                #position value is at least something, which is stored in table
-                beta = min(beta, entry[0])
+            # else:
+            #     '''LOWERBOUND'''
+            #     #found lowerbound, meaning other player had something better before
+            #     #position value is at least something, which is stored in table
+            #     beta = min(beta, entry[0])
     ct +=1
     if(depth ==0 or b.is_game_over()):
         #quiesce search instead
-        return quiesce(s,alpha, beta)
-        return s.evaluate() if b.turn else -s.evaluate()
+        #return quiesce(s,alpha, beta)
+        EVALSTART = time.time()
+        evaluate = s.evaluate()
+        evaluationtime +=time.time()-EVALSTART
+        return evaluate if b.turn else -evaluate
+    start = time.time()
     ordered = s.orderMoves()
+    movegentime += time.time()-start
     maxval = -math.inf
     for move in ordered:
         """for each move in the ordered list, push to state board, perform negamax"""
@@ -340,12 +354,14 @@ def negamax(s, depth, turn,alpha, beta):
         flag = -1
     else:
         flag = 0
+    # if((alpha > givenalpha) & (alpha < beta)):
+    #     flag = 0
     transpositions[hash] = (maxval, depth,flag)
     
     return maxval
 
 def quiesce(s,alpha,beta):
-
+    global movegentime
     '''given state, search all captures until only moves left are 'quiet' moves'''
 
     '''standingpat - a lower bound'''
@@ -353,7 +369,9 @@ def quiesce(s,alpha,beta):
     quiescenodes+=1
     b = s.board
     standingpat = s.evaluate() if b.turn else -s.evaluate()
+    start = time.time()
     caps = s.getCapturesOrdered()
+    movegentime += time.time()-start
     if(standingpat >= beta):
         return beta
     elif(standingpat>alpha):
