@@ -24,10 +24,11 @@ ct=0
 pc = 0
 quiescenodes = 0
 movegentime = 0 
+hashtime = 0
 evaluationtime = 0
 #read from database
 pgn = open('game.pgn')
-#pgn = open('games/caissabase.pgn')
+pgn = open('games/caissabase.pgn')
 mastergame = ""
 games = []
 gc=0
@@ -89,6 +90,7 @@ def commove():
     """pass in position metrics"""
     positionhash = zobrist.gen_zobhash(state.board)
     timetosearch = end-start
+    print(eval)
     data = {
     'eval':-eval,
     'material':int(state.evaluate()),
@@ -100,7 +102,8 @@ def commove():
     'nodespruned':pc,
     'quiescencenodes':quiescenodes,
     'movegentime':movegentime,
-    'evaluationtime':evaluationtime}
+    'evaluationtime':evaluationtime,
+    'hashtime':hashtime}
     '''convert move into tosquare,fromsquare'''
     fromsquare = chess.parse_square(move.uci()[0:2])
     tosquare = chess.parse_square(move.uci()[2:4])
@@ -188,7 +191,6 @@ def move():
 
     currenteval = computermove(state)
     print(not state.board.turn,"played: \n",state.board, "\nwith eval",state.evaluate())
-
     ret = "<html>"
     ret += "<a href='/move'><button>Move</button></a>"
     ret += "<a href='/'><button>Go Home></button></a>"
@@ -237,12 +239,14 @@ def playMove(state):
     global x
     global evaluationtime
     global movegentime
+    global hashtime
     pc = 0
     transpositionct = 0
     quiescenodes = 0
     b = state.board
     evaluationtime = 0
     movegentime = 0
+    hashtime = 0
     scores = []
     #iterative deepening
     #begin iterative deepening
@@ -262,31 +266,28 @@ def playMove(state):
             print("starting with bestmove:",bestmove, "at depth ", i)
             print("CURRBEST:",CURRBEST,x)
             b.push(bestmove)
-            eval = (negamax(state,i,not b.turn,-math.inf,math.inf),bestmove)
+            eval = (-negamax(state,i,b.turn,-math.inf,math.inf),bestmove)
             scores.append(eval)
             print("prev best move eval: ", eval)
 
             b.pop()
        
         for m in state.orderMoves():
-            if(time.time()-SEARCHSTART > 5.0):
-                # x = x if b.turn else -x
-                # print("bestmove:",CURRBEST,"withval",x)
-                # return CURRBEST, x
-                pass
+            if(time.time()-SEARCHSTART > 3.0):
+                print("bestmove:",CURRBEST,"withval",x)
+                return bestmove,eval[0]
             b.push(m[0])
-            eval =(negamax(state,i,not b.turn,-math.inf,math.inf),m[0])
+            eval =(-negamax(state,i,b.turn,-math.inf,math.inf),m[0])
             
             scores.append(eval)
             b.pop()
 
         """negamax returns the maximum value of state from perspective of player who's turn it is"""
         """scores stores negative maximum value of all successors"""
-        sort = sorted(scores, key = lambda x:x[0], reverse = b.turn)
+        sort = sorted(scores, key = lambda x:x[0], reverse = True)
         bestmove = sort[0][1]
         topeval = sort[0][0]
         print("chose ",bestmove,"withval",topeval)
-        print("secondbest",sort[1][1],sort[1][0])
         CURRBEST = bestmove
         x = topeval
 
@@ -303,9 +304,12 @@ def negamax(s, depth, turn,alpha, beta):
     global transpositions
     global movegentime
     global evaluationtime
+    global hashtime
     givenalpha = alpha  #this is the best that maximizing player could hope for, or the worst position black has the choice of giving white
     b = s.board
+    hashstart = time.time()
     hash = zobrist.gen_zobhash(b)
+    hashtime += time.time()-hashstart
     if(hash in transpositions):
         entry = transpositions[hash]
         if(entry[1] >= depth):
@@ -327,7 +331,7 @@ def negamax(s, depth, turn,alpha, beta):
     ct +=1
     if(depth ==0 or b.is_game_over()):
         #quiesce search instead
-        #return quiesce(s,alpha, beta)
+        # return quiesce(s,alpha, beta)
         EVALSTART = time.time()
         evaluate = s.evaluate()
         evaluationtime +=time.time()-EVALSTART

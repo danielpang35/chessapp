@@ -66,8 +66,8 @@ class State:
             if(piece.piece_type == chess.KNIGHT):
 
                 piece_val *= self.centerness[file*8+rank]             
-            # if(piece.piece_type == chess.PAWN):
-            #     piece_val *= self.pawnVals[file*8+rank]
+            if(piece.piece_type == chess.PAWN):
+                piece_val *= self.pawnVals[file*8+rank]
             val += piece_val  
             # add a number of legal moves term 
             #THIS SLOWS DOWN ALGORITHM SIGNIFICANTLY
